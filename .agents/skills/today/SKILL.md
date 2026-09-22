@@ -30,14 +30,19 @@ description: Start the day. Shows what is due (new problems, verifies, re-solves
 8. **Pre-flight** (`new` and `verify` only, never re-solves). Before the clock, walk the first five steps of
    `reference/interview-process.md`. Steps 1 to 3 carry no algorithmic information, so answer them like an
    interviewer would; steps 4 and 5 you log and say nothing about.
-   - **1 Restate** - correct a misread. Factual only.
-   - **2 Constraints** - answer them; they are on the page. Then ask for the target complexity that follows
-     ("Constraints to complexity" in that file). The target is an output of this step, not of step 5.
-   - **3 Example** - the candidate walks one small case by hand and states the expected output. Confirm or
-     correct it. This is the example they dry-run in step 7, so keep it.
-   - **4 Brute force + cost** and **5 Pattern + invariant + target complexity, and why over brute force** -
-     **log verbatim and give no signal at all.** No nod, no correction, no "interesting", no follow-up question.
-     Confirming an approach here is a free level-2 hint and it destroys the measurement.
+   Ask for it in **two messages, not five**. A real round is a continuous five-minute stretch with one
+   question-and-answer in the middle, not a step-by-step interrogation; gating each step teaches the candidate
+   to be driven when the room expects them to drive.
+   - **Ask once:** "Restate it, and ask me whatever you need about the input." They answer **steps 1 and 2**
+     together. Reply with the factual answers only - they are printed on the page, so they leak nothing - and
+     stop there.
+   - **Ask once:** "Now the example, the target complexity, the brute force, and what you are going to do."
+     They answer **steps 3, 4 and 5** in one go: one small case walked by hand with its expected output (keep
+     it - this is the one they dry-run before submitting), the target read off the constraint, the brute force
+     and its cost, then pattern, **invariant**, and why over brute force.
+     **Log it verbatim and give no signal at all** on 4 and 5. No nod, no correction, no "interesting", no
+     follow-up question. Confirming an approach here is a free level-2 hint and it destroys the measurement.
+     Step 3 is factual, so correcting a wrong hand-computed output is fine and worth doing.
    ```
    python3 scripts/plan.py preflight <id> "<steps 4 and 5, their words, verbatim>"
    ```

@@ -35,8 +35,18 @@ DATA = os.path.join(ROOT, "plan", "problems.json")
 SCHEDULE_MD = os.path.join(ROOT, "plan", "schedule.md")
 LOG_MD = os.path.join(ROOT, "plan", "log.md")
 
-COST_VERIFY = 15
-COST_NEW = {"Easy": 30, "Medium": 50, "Hard": 80}
+# Per-problem minutes the planner reserves. These are whole-item costs: solving plus the process
+# around it, because a day that only budgets solve time is a day that runs long. PREFLIGHT covers
+# interview-process steps 1-5 before the clock (cheaper on a verify - the problem is already known,
+# its insight is already in solutions/); TRACE covers step 7, the dry-run and edge case before
+# submitting. Re-solves get neither. Changing these moves the projected finish; `plan.py schedule`
+# prints the new one.
+SOLVE_VERIFY = 15
+SOLVE_NEW = {"Easy": 30, "Medium": 50, "Hard": 80}
+PREFLIGHT_MIN = {"verify": 2, "new": 5}
+TRACE_MIN = 3
+COST_VERIFY = SOLVE_VERIFY + PREFLIGHT_MIN["verify"] + TRACE_MIN
+COST_NEW = {k: v + PREFLIGHT_MIN["new"] + TRACE_MIN for k, v in SOLVE_NEW.items()}
 DRILL_MIN = 10
 RESOLVE_BUDGET_MIN = 45       # minutes per day reserved for re-solves
 RESOLVE_COST = {"code": 12, "explain": 5}
@@ -780,7 +790,7 @@ def cmd_validate(args):
         for k in ("id", "lc_id", "title", "section", "order", "difficulty", "lc_url", "status", "attempts", "flags"):
             if k not in p: errs.append(f"{p.get('id')}: missing {k}")
         if p["section"] not in secs: errs.append(f"{p['id']}: bad section")
-        if p["difficulty"] not in COST_NEW: errs.append(f"{p['id']}: bad difficulty {p['difficulty']}")
+        if p["difficulty"] not in SOLVE_NEW: errs.append(f"{p['id']}: bad difficulty {p['difficulty']}")
         if p["status"] not in ("todo", "solved_unverified", "solved", "verified"): errs.append(f"{p['id']}: bad status")
         if not p["gap"] and not p.get("nc_url"): errs.append(f"{p['id']}: no nc_url")
     for s in secs:

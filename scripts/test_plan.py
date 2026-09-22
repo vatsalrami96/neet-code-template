@@ -79,6 +79,22 @@ class Base(unittest.TestCase):
         d = P.load()
         return d, P.simulate(d, START)
 
+    def _seed(self):
+        """Force a handful of problems into the states _progress needs, so the suite behaves the
+        same on a freshly initialised repo and on one with months of recorded work. Idempotent."""
+        d = P.load()
+        core = sorted((p for p in d["problems"] if not p["gap"]), key=lambda p: (p["section"], p["order"]))
+        picks = core[:4]
+        for p in picks:
+            p["attempts"] = []; p["resolve_stage"] = 0; p["next_resolve"] = None; p["flags"] = []
+        for p in picks[:3]:
+            p["status"] = "solved_unverified"; p["solved_on"] = {"neetcode": True, "leetcode": True}
+        picks[3]["status"] = "todo"
+        d["days"] = {}; d["mocks"] = []; d["drills"] = []; d["start_times"] = {}; d["inprogress"] = {}
+        P.save(d)
+        self.seeded = [p["id"] for p in picks]
+        return self.seeded
+
 
 class TestSchedule(Base):
     def test_every_problem_scheduled_once(self):
@@ -280,22 +296,6 @@ class TestRewindIsProgressProof(Base):
         self.assertEqual(len(seen), len(set(seen)))
         self.assertIsNotNone(finish)
 
-    def _seed(self):
-        """Force a handful of problems into the states _progress needs, so the suite behaves the
-        same on a freshly initialised repo and on one with months of recorded work. Idempotent."""
-        d = P.load()
-        core = sorted((p for p in d["problems"] if not p["gap"]), key=lambda p: (p["section"], p["order"]))
-        picks = core[:4]
-        for p in picks:
-            p["attempts"] = []; p["resolve_stage"] = 0; p["next_resolve"] = None; p["flags"] = []
-        for p in picks[:3]:
-            p["status"] = "solved_unverified"; p["solved_on"] = {"neetcode": True, "leetcode": True}
-        picks[3]["status"] = "todo"
-        d["days"] = {}; d["mocks"] = []; d["drills"] = []; d["start_times"] = {}; d["inprogress"] = {}
-        P.save(d)
-        self.seeded = [p["id"] for p in picks]
-        return self.seeded
-
     def _progress(self):
         a, b, c, fresh = self._seed()
         d = P.load()
@@ -460,6 +460,80 @@ class TestBootstrap(Base):
         open(f, "w").write(json.dumps({"two-sum": {"lang": "cpp"}}))
         P.cmd_import_solved(self.A(file=f, source="leetcode", dry_run=True))
         self.assertEqual(P.by_id(P.load())["two-sum"]["status"], "todo")
+
+
+
+class TestPreflight(Base):
+    """Pre-flight (interview-process steps 1-5) is captured before the clock and graded at sync."""
+
+    class A:
+        def __init__(self, **kw): self.__dict__.update(kw)
+
+    def _pid(self):
+        # _seed puts the first three core problems into solved_unverified, so these tests do not
+        # depend on the repo already having history (a fresh `init` has none).
+        return self._seed()[0]
+
+    def test_preflight_before_start_is_marked_on_time(self):
+        pid = self._pid()
+        P.cmd_preflight(self.A(id=pid, text="brute force is every pair O(n^2); two pointers O(n)"))
+        ip = P.load()["inprogress"][pid]
+        self.assertFalse(ip["preflight"]["late"])
+        self.assertTrue(ip["preflight"]["at"])
+
+    def test_preflight_after_start_is_flagged_late(self):
+        pid = self._pid()
+        P.cmd_start(self.A(id=pid, date=None))
+        P.cmd_preflight(self.A(id=pid, text="thought of it afterwards"))
+        self.assertTrue(P.load()["inprogress"][pid]["preflight"]["late"])
+
+    def test_preflight_survives_onto_the_attempt(self):
+        pid = self._pid()
+        P.cmd_preflight(self.A(id=pid, text="set + only start where num-1 absent"))
+        d = P.load()
+        att = P.record_attempt(d, pid, "verify", "clean", START, preflight=8, traced=True)
+        P.save(d)
+        self.assertEqual(att["preflight"]["score"], 8)
+        self.assertTrue(att["preflight"]["logged"])
+        self.assertIn("num-1", att["preflight"]["text"])
+        self.assertTrue(att["traced"])
+        # and the day record carries the score so close/stats can see it
+        done = P.load()["days"][P.S(START)]["done"][-1]
+        self.assertEqual(done["preflight"], 8)
+        self.assertTrue(done["traced"])
+
+    def test_score_without_a_logged_preflight_is_marked_unlogged(self):
+        pid = self._pid()
+        d = P.load()
+        att = P.record_attempt(d, pid, "verify", "clean", START, preflight=4)
+        P.save(d)
+        self.assertFalse(att["preflight"]["logged"])
+
+    def test_attempts_without_preflight_stay_unchanged(self):
+        pid = self._pid()
+        d = P.load()
+        att = P.record_attempt(d, pid, "verify", "clean", START)
+        P.save(d)
+        self.assertNotIn("preflight", att)
+        self.assertNotIn("traced", att)
+
+    def test_stats_report_preflight_and_traced(self):
+        picks = self._seed()[:2]
+        for pid, score, tr in zip(picks, (6, 10), (True, False)):
+            P.cmd_preflight(self.A(id=pid, text="x"))
+            d = P.load()
+            P.record_attempt(d, pid, "verify", "clean", START, preflight=score, traced=tr)
+            P.save(d)
+        st = P.stats(P.load(), START)
+        self.assertEqual(st["preflight_score_week"], 8.0)
+        self.assertEqual(st["preflight_logged_rate_week"], 100)
+        self.assertEqual(st["traced_rate_week"], 50)
+
+    def test_score_must_be_within_range(self):
+        pid = self._pid()
+        with self.assertRaises(SystemExit):
+            P.cmd_record(self.A(id=pid, type="verify", result="clean", minutes=5, hints=0, explain="clean",
+                                errors=None, note=None, date=None, preflight=11, traced=False, not_traced=False))
 
 
 if __name__ == "__main__":

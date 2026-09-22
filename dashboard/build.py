@@ -74,17 +74,20 @@ def week_of(ds): return (P.D(ds) - P.D(d["meta"]["start_date"])).days // 7 + 1
 weeks = {}
 for p in d["problems"]:
     for a in p["attempts"]:
-        w = weeks.setdefault(week_of(a["date"]), {"res": [], "hints": [], "med": [], "exp": []})
+        w = weeks.setdefault(week_of(a["date"]), {"res": [], "hints": [], "med": [], "exp": [], "pf": []})
         if a["type"] == "resolve": w["res"].append(a["result"] == "clean")
         if a["type"] in ("new", "verify"):
             if isinstance(a.get("hints"), int): w["hints"].append(a["hints"])
             if a.get("explain"): w["exp"].append(a["explain"] == "clean")
+            if a.get("preflight") and a["preflight"].get("score") is not None:
+                w["pf"].append(a["preflight"]["score"])
         if a["type"] == "new" and p["difficulty"] == "Medium" and a.get("minutes"): w["med"].append(a["minutes"])
 def series(key, fn):
     return [(wk, fn(v[key])) for wk, v in sorted(weeks.items()) if v[key]]
 def pct(xs): return round(100 * sum(xs) / len(xs))
 S_res = series("res", pct); S_exp = series("exp", pct)
 S_h = series("hints", lambda xs: round(sum(xs) / len(xs), 2)); S_m = series("med", lambda xs: statistics.median(xs))
+S_pf = series("pf", lambda xs: round(sum(xs) / len(xs), 1))
 
 def bars(ser, unit, vmax=None, good_high=True):
     if not ser:
@@ -103,6 +106,7 @@ def bars(ser, unit, vmax=None, good_high=True):
 trend_cards = [
     ("Re-solve clean rate", "target ≥ 80%", bars(S_res, "%", 100)),
     ("Explain-back clean rate", "target consistently clean", bars(S_exp, "%", 100)),
+    ("Pre-flight score", "steps 1-5, out of 10, before the clock", bars(S_pf, "", 10)),
     ("Hints per new problem", "should trend down", bars(S_h, "", None)),
     ("Median Medium solve, minutes", "target ≈ 25 by week 4", bars(S_m, "m", None)),
 ]
@@ -123,11 +127,15 @@ sub = f'Day {day_n} · {today.strftime("%A %d %b %Y")} · Amazon SDE2 · Python'
 finish_txt = f'{finish.strftime("%d %b")} (day {P.day_index(d, finish)})' if finish else "–"
 deferred = sum(1 for p in d["problems"] if "deferred" in p["flags"])
 rate = st["resolve_clean_rate_week"]
+pf = st.get("preflight_score_week")
+tr = st.get("traced_rate_week")
 tiles = [
     ("Owned", f'{st["solved_or_verified"]}<small>/{st["total_core"]}</small>', "solved or verified, NeetCode 150"),
     ("Unverified", str(st["unverified"]), "solved before, not yet re-proven"),
     ("Streak", f'{st["streak"]}<small> d</small>', "days with any recorded work"),
     ("Re-solve clean", f'{rate if rate is not None else "–"}<small>{"%" if rate is not None else ""}</small>', "this week; the number that matters"),
+    ("Pre-flight", f'{pf if pf is not None else "–"}<small>{"/10" if pf is not None else ""}</small>',
+     f'steps 1-5 before coding; {tr}% traced before submit' if tr is not None else "steps 1-5, stated before coding"),
     ("Projected finish", finish_txt, f'{deferred} deferred' if deferred else ("interview " + interview if interview else "no interview date set")),
 ]
 tiles_html = "".join(f'<div class="tile"><span class="tl">{t}</span><span class="tv">{v}</span><span class="td">{E(sd)}</span></div>' for t, v, sd in tiles)

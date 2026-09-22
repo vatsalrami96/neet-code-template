@@ -85,8 +85,10 @@ python3 scripts/plan.py today [--json]                 what is due (also closes 
 python3 scripts/plan.py start <id>                     log start time (re-run to restart; hints are kept)
 python3 scripts/plan.py stop <id>                      clear the clock, keep the hint count
 python3 scripts/plan.py hint <id> <1|2|3|solution>     log hint level
+python3 scripts/plan.py preflight <id> "..."           log steps 1-5 verbatim, BEFORE start
 python3 scripts/plan.py record <id> --type new|verify|resolve --result clean|sloppy|wrong|solution
         [--minutes N] [--hints N] [--explain clean|sloppy|wrong] [--errors misread,off-by-one,...] [--note "..."]
+        [--preflight 0..10] [--traced|--not-traced]
 python3 scripts/plan.py note <id> insight|complexity|alternatives|explanation "..."
 python3 scripts/plan.py close [--summary "..."]        close today
 python3 scripts/plan.py schedule                       regenerate plan/schedule.md
@@ -107,6 +109,12 @@ Problem ids are LeetCode slugs (e.g. `two-sum`). `plan.py today --json` gives id
   or `wrong` -> back to `todo` with flag `failed-verify` (treated as a new problem, full re-solve ladder)
 - `resolve` attempts: `clean` advances the stage, anything else resets to stage 0 and flags `weak`
 - Results: `clean` (no hints, correct, explained), `sloppy` (correct but hints or messy), `wrong`, `solution` (needed the full solution)
+- Pre-flight: steps 1-5 of `reference/interview-process.md`, stated before the clock and scored 0-10 at sync
+  (2 per step, same scale as `mock`). Logged verbatim by `plan.py preflight`, which timestamps it; a pre-flight
+  logged after `start` scores 0, because it cannot show the thinking preceded the coding. Steps 1-3 may be
+  answered like an interviewer would; steps 4-5 get no signal at all, or the score measures nothing.
+  `traced` records whether step 7 (dry-run + edge case) happened before submitting. Neither changes the attempt
+  `result` - process and outcome are separate signals. Re-solves have no pre-flight.
 - Error tags (pick from): `misread`, `off-by-one`, `wrong-ds`, `edge-case`, `tle`, `syntax`, `logic`, `complexity`
 - Import flags (set by `import-solved`, only on problems solved before this system): `other-lang` = the old accept was
   not in Python, so the verify must be done in Python and any non-`.py` file in `solutions/` is reference only, replaced

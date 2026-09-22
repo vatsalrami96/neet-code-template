@@ -9,8 +9,10 @@ Usage (run from repo root):
   plan.py today [--date D] [--json]      what is due today (closes earlier open days first)
   plan.py start ID [--date D]            log start time for a problem
   plan.py hint ID LEVEL                  log a hint (1..3, or 'solution')
+  plan.py preflight ID "TEXT"            log the verbatim pre-flight BEFORE `start` (steps 1-5)
   plan.py record ID --type new|verify|resolve --result clean|sloppy|wrong|solution
             [--minutes M] [--explain clean|sloppy|wrong] [--errors a,b] [--note TEXT] [--date D]
+            [--preflight 0..10] [--traced | --not-traced]
   plan.py close [--date D] [--summary TEXT]   close the day, append log, regenerate schedule
   plan.py schedule [--date D]            projection -> plan/schedule.md, prints finish date
   plan.py set-date YYYY-MM-DD|none       set interview date (drives compression)
@@ -408,7 +410,8 @@ def close_open_days_before(d, day):
     return closed
 
 
-def record_attempt(d, pid, typ, result, day, minutes=None, hints=None, explain=None, errors=None, note=""):
+def record_attempt(d, pid, typ, result, day, minutes=None, hints=None, explain=None, errors=None, note="",
+                   preflight=None, traced=None):
     ids = by_id(d)
     p = ids[pid]
     ip = d.get("inprogress", {}).pop(pid, None)
@@ -423,6 +426,14 @@ def record_attempt(d, pid, typ, result, day, minutes=None, hints=None, explain=N
         hints = 0
     att = {"date": S(day), "type": typ, "result": result, "minutes": minutes, "hints": hints,
            "explain": explain, "errors": errors or [], "note": note}
+    # The pre-flight is logged before the clock starts (see cmd_preflight), so its presence is
+    # evidence that steps 1-5 happened before coding, not a claim made afterwards.
+    pf = (ip or {}).get("preflight")
+    if pf or preflight is not None:
+        att["preflight"] = {"score": preflight, "logged": bool(pf),
+                            "at": (pf or {}).get("at"), "text": (pf or {}).get("text", "")}
+    if traced is not None:
+        att["traced"] = bool(traced)
     p["attempts"].append(att)
     if typ in ("new", "verify"):
         if typ == "verify" and result == "wrong":
@@ -449,7 +460,8 @@ def record_attempt(d, pid, typ, result, day, minutes=None, hints=None, explain=N
     if rec["planned"] is None:
         rec["planned"] = plan_day(d, day)
     rec["done"].append({"id": pid, "type": typ, "result": result, "minutes": minutes, "hints": hints,
-                        "explain": explain, "errors": errors or []})
+                        "explain": explain, "errors": errors or [],
+                        "preflight": att.get("preflight", {}).get("score"), "traced": att.get("traced")})
     return att
 
 
@@ -481,6 +493,11 @@ def stats(d, upto=None):
     def rate(xs, ok=("clean",)):
         return round(100 * sum(1 for a in xs if a["result"] in ok) / len(xs)) if xs else None
     explain = [a["explain"] for p, a in atts if a.get("explain") and wk(a)]
+    pf_scored = [a["preflight"]["score"] for a in new_wk
+                 if a.get("preflight") and a["preflight"].get("score") is not None]
+    pf_eligible = [a for a in new_wk if a.get("preflight") is not None or a.get("traced") is not None]
+    pf_logged = [a for a in new_wk if a.get("preflight", {}).get("logged")]
+    traced = [a["traced"] for a in new_wk if a.get("traced") is not None]
     hints = [a["hints"] for a in new_wk if isinstance(a.get("hints"), int)]
     total = len([p for p in d["problems"] if not p["gap"]])
     done_ids = [p for p in d["problems"] if p["status"] in ("solved", "verified")]
@@ -495,6 +512,9 @@ def stats(d, upto=None):
         "resolves_week": len(res_wk),
         "explain_clean_rate_week": round(100 * explain.count("clean") / len(explain)) if explain else None,
         "hints_per_new_week": round(sum(hints) / len(hints), 2) if hints else None,
+        "preflight_score_week": round(sum(pf_scored) / len(pf_scored), 1) if pf_scored else None,
+        "preflight_logged_rate_week": round(100 * len(pf_logged) / len(new_wk)) if new_wk else None,
+        "traced_rate_week": round(100 * sum(traced) / len(traced)) if traced else None,
         "median_medium_minutes_week": statistics.median(med) if med else None,
         "error_categories_week": dict(sorted(errs.items(), key=lambda kv: -kv[1])),
         "planned_week": planned, "done_week": done,
@@ -608,15 +628,42 @@ def cmd_hint(args):
     save(d); print(f"hint level now {ip['hints']} for {ids[args.id]['title']}")
 
 
+def cmd_preflight(args):
+    """Log the verbatim pre-flight (interview-process steps 1-5) BEFORE the clock starts.
+
+    Timestamped on purpose: a pre-flight recorded after `start` cannot prove the thinking happened
+    before the coding, which is the only thing this measures. Grading happens later, at sync.
+    """
+    d = load(); ids = by_id(d)
+    if args.id not in ids: sys.exit(f"unknown id {args.id}")
+    ip = d.setdefault("inprogress", {}).setdefault(args.id, {"start": None, "hints": 0})
+    late = bool(ip.get("start"))
+    ip["preflight"] = {"text": args.text, "at": datetime.now().isoformat(timespec="seconds"), "late": late}
+    save(d)
+    warn = "  ⚠ clock already running - this pre-flight is after the fact and scores 0" if late else ""
+    print(f"pre-flight logged for {ids[args.id]['title']} at {ip['preflight']['at']}{warn}")
+
+
 def cmd_record(args):
     d = load(); day = today_arg(args); ids = by_id(d)
     if args.id not in ids: sys.exit(f"unknown id {args.id}")
     errors = [e.strip() for e in args.errors.split(",")] if args.errors else []
+    if args.preflight is not None and not 0 <= args.preflight <= 10:
+        sys.exit("--preflight is a score out of 10 (2 per step across interview-process steps 1-5)")
+    traced = True if args.traced else (False if args.not_traced else None)
     att = record_attempt(d, args.id, args.type, args.result, day, minutes=args.minutes, hints=args.hints,
-                         explain=args.explain, errors=errors, note=args.note or "")
+                         explain=args.explain, errors=errors, note=args.note or "",
+                         preflight=args.preflight, traced=traced)
     save(d)
     p = ids[args.id]
-    print(f"recorded {args.type}:{args.result} for {p['title']} · status {p['status']} · next re-solve {p['next_resolve']} · flags {p['flags']}")
+    extra = ""
+    if att.get("preflight"):
+        pf = att["preflight"]
+        extra += f" · pre-flight {pf['score'] if pf['score'] is not None else '-'}/10"
+        if not pf["logged"]: extra += " (not logged before the clock)"
+    if att.get("traced") is not None:
+        extra += f" · traced {'yes' if att['traced'] else 'no'}"
+    print(f"recorded {args.type}:{args.result} for {p['title']} · status {p['status']} · next re-solve {p['next_resolve']} · flags {p['flags']}{extra}")
 
 
 def cmd_close(args):
@@ -863,10 +910,15 @@ def main():
     s = sub.add_parser("start"); s.add_argument("id"); s.add_argument("--date"); s.set_defaults(fn=cmd_start)
     s = sub.add_parser("stop"); s.add_argument("id"); s.set_defaults(fn=cmd_stop)
     s = sub.add_parser("hint"); s.add_argument("id"); s.add_argument("level"); s.set_defaults(fn=cmd_hint)
+    s = sub.add_parser("preflight"); s.add_argument("id"); s.add_argument("text"); s.set_defaults(fn=cmd_preflight)
     s = sub.add_parser("record"); s.add_argument("id"); s.add_argument("--type", required=True, choices=["new", "verify", "resolve"])
     s.add_argument("--result", required=True, choices=["clean", "sloppy", "wrong", "solution"]); s.add_argument("--minutes", type=int)
     s.add_argument("--hints", type=int); s.add_argument("--explain", choices=["clean", "sloppy", "wrong"]); s.add_argument("--errors")
-    s.add_argument("--note"); s.add_argument("--date"); s.set_defaults(fn=cmd_record)
+    s.add_argument("--note"); s.add_argument("--date")
+    s.add_argument("--preflight", type=int, help="score 0-10: 2 per step across interview-process steps 1-5")
+    s.add_argument("--traced", action="store_true", help="dry-ran example + an edge case before submitting")
+    s.add_argument("--not-traced", dest="not_traced", action="store_true")
+    s.set_defaults(fn=cmd_record)
     s = sub.add_parser("close"); s.add_argument("--date"); s.add_argument("--summary"); s.set_defaults(fn=cmd_close)
     s = sub.add_parser("schedule"); s.add_argument("--date"); s.set_defaults(fn=cmd_schedule)
     s = sub.add_parser("set-date"); s.add_argument("date_value"); s.set_defaults(fn=cmd_set_date)

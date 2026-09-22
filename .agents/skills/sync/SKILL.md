@@ -44,6 +44,16 @@ Record notes: `python3 scripts/plan.py note <id> insight "..."`, and likewise `c
 - Alternatives: for Amazon score >= 40, one alternative approach and its trade-off, plus one follow-up variation an interviewer would ask ("what if it's a stream", "no extra space", "k of them").
 - One thing they did well, specifically.
 
+## 5b. Grade the pre-flight
+`plan.py show <id>` carries what they said before the clock (`inprogress[id].preflight`). Score the five steps of
+`reference/interview-process.md` against **what they actually built**, 2 unprompted / 1 partial or nudged /
+0 skipped, out of 10. Same scale as `mock`, so the two numbers are comparable.
+- Step 5 needs the **invariant**, not just the pattern name. Pattern alone is a 1.
+- A target complexity that does not match what they shipped is a 1, even if the code is correct - it went unused.
+- `late: true` or no pre-flight logged: score 0 and say so plainly, once.
+Also settle **traced**: did they dry-run an example and an edge case before submitting? If they say yes and
+`failedSince` is 2 or more, say the contradiction out loud and record `--not-traced`. One line, no lecture.
+
 ## 6. Record
 Decide the type: `verify` if the problem's status was `solved_unverified`, else `new`.
 Result:
@@ -53,9 +63,11 @@ Result:
 - For `verify` with hint level 3 or solution: result `wrong` (it goes back to `todo`).
 Minutes: from `start` to accept timestamp if a start was logged, else from their estimate.
 ```
-python3 scripts/plan.py record <id> --type <new|verify> --result <r> --minutes <m> --hints <n> --explain <clean|sloppy|wrong> [--errors a,b] [--note "..."]
+python3 scripts/plan.py record <id> --type <new|verify> --result <r> --minutes <m> --hints <n> --explain <clean|sloppy|wrong> [--errors a,b] [--note "..."] [--preflight 0..10] [--traced|--not-traced]
 ```
-Say what was recorded in one line, including the next re-solve date.
+Say what was recorded in one line, including the next re-solve date and the pre-flight score.
+The pre-flight score does **not** change the attempt `result`. It is a separate signal about process; conflating
+the two would let a good approach launder a sloppy solve, or the reverse.
 
 ## 7. Next problem
 Run `python3 scripts/plan.py today --json`; if there is a next `mixed`/`verify`/`new` item, open it in the browser.

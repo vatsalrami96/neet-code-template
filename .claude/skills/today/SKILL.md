@@ -27,8 +27,28 @@ description: Start the day. Shows what is due (new problems, verifies, re-solves
    Chrome, not the built-in pane, because they solve in their own editor setup).
    **Do not start the clock.** They are still reading the due list, the primer and the drill, and that reading time would land in
    the recorded minutes. Name the problem and let them start it.
-8. State the time cap: 30 minutes for Easy/Medium, 20 minutes for Hard before hints start. For `verify`, 15 minutes and it must be from memory.
-9. Show progress and projected finish from `stats` / `projected_finish` in one line.
+8. **Pre-flight** (`new` and `verify` only, never re-solves). Before the clock, walk the first five steps of
+   `reference/interview-process.md`. Steps 1 to 3 carry no algorithmic information, so answer them like an
+   interviewer would; steps 4 and 5 you log and say nothing about.
+   - **1 Restate** - correct a misread. Factual only.
+   - **2 Constraints** - answer them; they are on the page. Then ask for the target complexity that follows
+     ("Constraints to complexity" in that file). The target is an output of this step, not of step 5.
+   - **3 Example** - the candidate walks one small case by hand and states the expected output. Confirm or
+     correct it. This is the example they dry-run in step 7, so keep it.
+   - **4 Brute force + cost** and **5 Pattern + invariant + target complexity, and why over brute force** -
+     **log verbatim and give no signal at all.** No nod, no correction, no "interesting", no follow-up question.
+     Confirming an approach here is a free level-2 hint and it destroys the measurement.
+   ```
+   python3 scripts/plan.py preflight <id> "<steps 4 and 5, their words, verbatim>"
+   ```
+   Log it **before** `plan.py start`. The command warns if the clock is already running, and a late pre-flight
+   scores 0 - it cannot show the thinking came before the coding, which is the only thing it measures.
+   If they want to skip it, that is their call: say "skipped, scores 0" in three words and move on. Do not argue.
+9. **Before they submit**, remind them once of step 7: dry-run the step-3 example through the code they wrote,
+   then one edge case, then state final time and space read off the code, not off the step-5 prediction. Say
+   nothing about whether the trace is right.
+10. State the time cap: 30 minutes for Easy/Medium, 20 minutes for Hard before hints start. For `verify`, 15 minutes and it must be from memory.
+11. Show progress and projected finish from `stats` / `projected_finish` in one line.
 
 End with: `Next: say "start" when you are ready, or "re-solves" to switch.`
 

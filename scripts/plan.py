@@ -429,17 +429,18 @@ def record_attempt(d, pid, typ, result, day, minutes=None, hints=None, explain=N
     # The pre-flight is logged before the clock starts (see cmd_preflight), so its presence is
     # evidence that steps 1-5 happened before coding, not a claim made afterwards.
     pf = (ip or {}).get("preflight")
+    if typ == "resolve":
+        # A re-solve measures recall against a clock; walking steps 1-5 first changes what it measures.
+        # An explicit score is a mistake worth stopping for. A pre-flight merely left over from an
+        # earlier, abandoned attempt on the same problem is not - drop it and record the re-solve.
+        if preflight is not None:
+            raise ValueError("re-solves take no pre-flight (see CLAUDE.md, 'Pre-flight')")
+        pf = None
     if pf or preflight is not None:
         # Duration is the gap between logging the pre-flight and starting the clock. Nothing extra is
         # captured for it; both timestamps already exist. It is reported separately from `minutes` so
         # median_medium_minutes_week stays a solve-speed number and stays comparable with older attempts.
-        pf_min = None
-        if pf and pf.get("at") and (ip or {}).get("start"):
-            try:
-                delta = (datetime.fromisoformat(ip["start"]) - datetime.fromisoformat(pf["at"])).total_seconds()
-                pf_min = round(delta / 60, 1) if delta >= 0 else None
-            except Exception:
-                pf_min = None
+        pf_min = pf.get("minutes") if pf else None
         att["preflight"] = {"score": preflight, "logged": bool(pf),
                             "at": (pf or {}).get("at"), "minutes": pf_min, "text": (pf or {}).get("text", "")}
     if traced is not None:
@@ -610,6 +611,15 @@ def cmd_start(args):
     if args.id not in ids: sys.exit(f"unknown id {args.id}")
     ip = d.setdefault("inprogress", {}).setdefault(args.id, {"start": None, "hints": 0})
     ip["start"] = datetime.now().isoformat(timespec="seconds")
+    # Freeze the pre-flight duration at the FIRST start. A restart must not shrink it and a stop must
+    # not erase it: the figure is how long steps 1-5 took, and that is settled the moment coding begins.
+    pf = ip.get("preflight")
+    if pf and "minutes" not in pf:
+        try:
+            gap = (datetime.fromisoformat(ip["start"]) - datetime.fromisoformat(pf["at"])).total_seconds()
+            pf["minutes"] = round(gap / 60, 1) if gap >= 0 and not pf.get("late") else None
+        except Exception:
+            pf["minutes"] = None
     save(d)
     kept = f" · hints kept at {ip['hints']}" if ip.get("hints") else ""
     print(f"started {ids[args.id]['title']} at {ip['start']}{kept}")
@@ -661,6 +671,8 @@ def cmd_record(args):
     d = load(); day = today_arg(args); ids = by_id(d)
     if args.id not in ids: sys.exit(f"unknown id {args.id}")
     errors = [e.strip() for e in args.errors.split(",")] if args.errors else []
+    if args.type == "resolve" and args.preflight is not None:
+        sys.exit("re-solves take no pre-flight; drop --preflight")
     if args.preflight is not None and not 0 <= args.preflight <= 10:
         sys.exit("--preflight is a score out of 10 (2 per step across interview-process steps 1-5)")
     traced = True if args.traced else (False if args.not_traced else None)

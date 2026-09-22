@@ -529,17 +529,67 @@ class TestPreflight(Base):
         self.assertEqual(st["preflight_logged_rate_week"], 100)
         self.assertEqual(st["traced_rate_week"], 50)
 
-    def test_preflight_duration_is_derived_from_the_two_timestamps(self):
-        pid = self._pid()
+    def _preflight_ago(self, pid, minutes):
+        """Log a pre-flight, then backdate it so `start` sees the given gap."""
         P.cmd_preflight(self.A(id=pid, text="x"))
         d = P.load()
-        # pre-flight at T, clock started 6 minutes later
-        at = datetime.fromisoformat(d["inprogress"][pid]["preflight"]["at"])
-        d["inprogress"][pid]["start"] = (at + timedelta(minutes=6)).isoformat(timespec="seconds")
+        pf = d["inprogress"][pid]["preflight"]
+        pf["at"] = (datetime.fromisoformat(pf["at"]) - timedelta(minutes=minutes)).isoformat(timespec="seconds")
+        P.save(d)
+
+    def test_preflight_duration_is_derived_from_the_two_timestamps(self):
+        pid = self._pid()
+        self._preflight_ago(pid, 6)
+        P.cmd_start(self.A(id=pid, date=None))
+        d = P.load()
         att = P.record_attempt(d, pid, "verify", "clean", START, minutes=12, preflight=8)
         P.save(d)
         self.assertEqual(att["preflight"]["minutes"], 6.0)
         self.assertEqual(att["minutes"], 12)          # solve time is untouched by the pre-flight
+
+    def test_restart_does_not_shrink_the_preflight_duration(self):
+        pid = self._pid()
+        self._preflight_ago(pid, 6)
+        P.cmd_start(self.A(id=pid, date=None))
+        P.cmd_start(self.A(id=pid, date=None))        # restart: allowed, hints kept
+        d = P.load()
+        att = P.record_attempt(d, pid, "verify", "clean", START, minutes=12, preflight=8)
+        P.save(d)
+        self.assertEqual(att["preflight"]["minutes"], 6.0)
+
+    def test_stop_does_not_erase_the_preflight_duration(self):
+        pid = self._pid()
+        self._preflight_ago(pid, 4)
+        P.cmd_start(self.A(id=pid, date=None))
+        P.cmd_stop(self.A(id=pid))
+        d = P.load()
+        att = P.record_attempt(d, pid, "verify", "clean", START, minutes=12, preflight=8)
+        P.save(d)
+        self.assertEqual(att["preflight"]["minutes"], 4.0)
+
+    def test_late_preflight_has_no_duration(self):
+        pid = self._pid()
+        P.cmd_start(self.A(id=pid, date=None))
+        P.cmd_preflight(self.A(id=pid, text="after the fact"))
+        d = P.load()
+        att = P.record_attempt(d, pid, "verify", "clean", START, minutes=12, preflight=0)
+        P.save(d)
+        self.assertIsNone(att["preflight"]["minutes"])
+
+    def test_resolves_reject_an_explicit_preflight_score(self):
+        pid = self._pid()
+        d = P.load()
+        with self.assertRaises(ValueError):
+            P.record_attempt(d, pid, "resolve", "clean", START, minutes=5, preflight=9)
+
+    def test_a_stale_preflight_does_not_block_a_resolve(self):
+        """Left over from an abandoned attempt on the same problem: drop it, do not refuse the re-solve."""
+        pid = self._pid()
+        P.cmd_preflight(self.A(id=pid, text="from an attempt that never finished"))
+        d = P.load()
+        att = P.record_attempt(d, pid, "resolve", "clean", START, minutes=5)
+        P.save(d)
+        self.assertNotIn("preflight", att)
 
     def test_preflight_duration_is_none_without_a_clock(self):
         pid = self._pid()
@@ -552,10 +602,9 @@ class TestPreflight(Base):
     def test_stats_report_median_preflight_minutes(self):
         picks = self._seed()[:2]
         for pid, gap in zip(picks, (4, 8)):
-            P.cmd_preflight(self.A(id=pid, text="x"))
+            self._preflight_ago(pid, gap)
+            P.cmd_start(self.A(id=pid, date=None))
             d = P.load()
-            at = datetime.fromisoformat(d["inprogress"][pid]["preflight"]["at"])
-            d["inprogress"][pid]["start"] = (at + timedelta(minutes=gap)).isoformat(timespec="seconds")
             P.record_attempt(d, pid, "verify", "clean", START, minutes=10, preflight=8)
             P.save(d)
         self.assertEqual(P.stats(P.load(), START)["median_preflight_minutes_week"], 6.0)

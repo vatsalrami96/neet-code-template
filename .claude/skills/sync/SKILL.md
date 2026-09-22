@@ -78,7 +78,11 @@ Run `python3 scripts/plan.py today --json`; if there is a next `mixed`/`verify`/
 **Do not start the clock.** They are still reading the review, and that reading time would land in the recorded minutes -
 the one number `median_medium_minutes_week` depends on. Open the tab, name the problem, and let them start it.
 
-End with: `Next: say "start" when you are ready, or "re-solves" / "done for today".`
+Then run the **pre-flight** for it, exactly as in `today` step 8 - same five steps, same silence on 4 and 5,
+same `plan.py preflight` before `plan.py start`. Every `new` and `verify` gets one, not just the day's first;
+skipping it here is how the measurement quietly becomes one problem a day.
+
+End with: `Next: say "ready" to start the clock, or "re-solves" / "done for today".`
 
 If they say "accepted" on a problem whose clock was never started, or whose `start` is much older than the work
 (they stepped away, or read a long review), do not silently trust the gap. Say the elapsed figure, ask whether it

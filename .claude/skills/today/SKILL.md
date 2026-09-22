@@ -47,12 +47,19 @@ description: Start the day. Shows what is due (new problems, verifies, re-solves
    Log it **before** `plan.py start`. The command warns if the clock is already running, and a late pre-flight
    scores 0 - it cannot show the thinking came before the coding, which is the only thing it measures.
    If they want to skip it, that is their call: say "skipped, scores 0" in three words and move on. Do not argue.
-9. **Before they submit**, remind them once of step 7: dry-run the step-3 example through the code they wrote,
-   then one edge case, then state final time and space read off the code, not off the step-5 prediction. Say
-   nothing about whether the trace is right.
-10. State the time cap: 30 minutes for Easy/Medium, 20 minutes for Hard before hints start. For `verify`, 15 minutes and it must be from memory.
-11. Show progress and projected finish from `stats` / `projected_finish` in one line.
+9. State the time cap: 30 minutes for Easy/Medium, 20 minutes for Hard before hints start. For `verify`, 15 minutes and it must be from memory.
+10. Show progress and projected finish from `stats` / `projected_finish` in one line.
 
-End with: `Next: say "start" when you are ready, or "re-solves" to switch.`
+End with: `Next: say "ready" to start the clock, or "re-solves" to switch.`
+
+## During the solve (not part of the morning run)
+
+These fire later, on their own, once the morning list is done. Do not say them during steps 1 to 10.
+
+- When they say they are starting (`ready`, `starting`, `go`): run `python3 scripts/plan.py start <id>`, confirm
+  in one line with the cap, and nothing else.
+- **Before they submit**, once: dry-run the step-3 example through the code they wrote, then one edge case, then
+  state final time and space read off the code, not off the step-5 prediction. Say nothing about whether the
+  trace is right. If they have already submitted when they tell you, skip it - do not ask them to pretend.
 
 Never show any solution code in this skill.

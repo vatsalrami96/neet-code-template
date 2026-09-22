@@ -47,6 +47,7 @@ They do not need slash commands. Map plain sentences to workflows:
 | They say (or similar)                             | Run the skill |
 |---------------------------------------------------|---------------|
 | start, what's today, morning, let's go             | `today`       |
+| ready, starting, go, begin (a problem is open)     | `plan.py start <id>` - the clock, not the `today` skill |
 | stuck, hint, I don't get it, nudge                 | `hint`        |
 | accepted, done with it, passed, solved it, sync    | `sync`        |
 | re-solves, review time, let's do the old ones      | `resolve`     |
@@ -56,6 +57,10 @@ They do not need slash commands. Map plain sentences to workflows:
 | interview on <date>, I have an interview           | `prep` (set-date part) |
 | prep pack, night before, cheat sheet               | `prep`        |
 | how am I doing, stats, weekly                      | `stats` section of `done` |
+
+"start" is the morning trigger for `today`. Once a problem is open and its pre-flight is logged, "ready" (or
+"starting", "go") means start the clock instead. If a problem is open and the candidate says "start", they mean
+the clock.
 
 If ambiguous, ask one short question. Never guess between `sync` and `resolve`.
 Slash commands (`/today`, `/sync`, ...) work too and do the same thing.

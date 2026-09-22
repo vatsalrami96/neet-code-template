@@ -758,6 +758,7 @@ def cmd_init(args):
             "resolve_intervals": TIERS["A"]["intervals"],
             "target_company": "amazon",
             "level": args.level,
+            "premium": bool(args.premium),
             "user_name": args.name or "",
             "interview_date": None,
             "mode": "active",
@@ -777,7 +778,8 @@ def cmd_init(args):
             f.write("# Daily log\n\nAppended by `plan.py close`. One entry per day.\n")
     print(f"{DATA}: {len(d['problems'])} problems, {len(d['sections'])} sections")
     print(f"start {start.isoformat()} ({WEEKDAYS[start.weekday()]}), light day {args.light_day}, "
-          f"{args.daily_minutes} min/day, {args.new_per_day} new/day")
+          f"{args.daily_minutes} min/day, {args.new_per_day} new/day, "
+          f"Premium {'yes' if args.premium else 'no'}")
     print("Next: `plan.py import-solved FILE` if you have LeetCode history, then `plan.py schedule`.")
 
 
@@ -852,6 +854,7 @@ def main():
     s = sub.add_parser("init"); s.add_argument("--start-date"); s.add_argument("--light-day", default="Sunday")
     s.add_argument("--daily-minutes", type=int, default=240); s.add_argument("--new-per-day", type=int, default=3)
     s.add_argument("--resolve-per-day", type=int, default=4); s.add_argument("--level", default="SDE2")
+    s.add_argument("--premium", action="store_true", help="LeetCode Premium: unlocks the Premium-only problems")
     s.add_argument("--name"); s.add_argument("--force", action="store_true"); s.set_defaults(fn=cmd_init)
     s = sub.add_parser("import-solved"); s.add_argument("file")
     s.add_argument("--source", default="leetcode", choices=["leetcode", "neetcode"])

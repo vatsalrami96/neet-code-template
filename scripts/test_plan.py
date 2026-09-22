@@ -69,7 +69,7 @@ class Base(unittest.TestCase):
         else:
             # fresh clone, before `plan.py init` has ever run: build the fixture from the catalogue
             P.cmd_init(argparse.Namespace(start_date=P.S(START), light_day="Sunday", daily_minutes=240,
-                                          new_per_day=3, resolve_per_day=4, level="SDE2", name=None, force=True))
+                                          new_per_day=3, resolve_per_day=4, level="SDE2", premium=False, name=None, force=True))
         d = pristine(P.load()); P.assign_interleave(d); P.save(d)
 
     def tearDown(self):
@@ -377,7 +377,7 @@ class TestBootstrap(Base):
 
     def _init_args(self, **kw):
         base = dict(start_date=P.S(START), light_day="Sunday", daily_minutes=240, new_per_day=3,
-                    resolve_per_day=4, level="SDE2", name=None, force=False)
+                    resolve_per_day=4, level="SDE2", premium=False, name=None, force=False)
         base.update(kw)
         return self.A(**base)
 
@@ -395,6 +395,14 @@ class TestBootstrap(Base):
         # and the engine can immediately plan a day off it
         pl = P.plan_day(P.load(), START)
         self.assertTrue(pl["new"])
+
+    def test_init_records_premium_so_the_today_skill_can_read_it(self):
+        os.remove(P.DATA)
+        P.cmd_init(self._init_args())
+        self.assertIs(P.load()["meta"]["premium"], False)
+        os.remove(P.DATA)
+        P.cmd_init(self._init_args(premium=True))
+        self.assertIs(P.load()["meta"]["premium"], True)
 
     def test_init_refuses_to_clobber_existing_state(self):
         with self.assertRaises(SystemExit):

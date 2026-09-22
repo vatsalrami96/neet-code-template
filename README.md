@@ -24,7 +24,18 @@ git clone <this repo> my-prep && cd my-prep
 python3 scripts/plan.py init --start-date 2026-10-01 --light-day Sunday --daily-minutes 240 --new-per-day 3
 ```
 
-Every flag is optional: `init` alone starts today with 4 hours a day, 3 new problems, Sunday as the light day.
+Add `--premium` if you have LeetCode Premium. Every flag is optional: `init` alone starts today with 4 hours a
+day, 3 new problems, Sunday as the light day, no Premium.
+
+**Make it yours.** A clone still points at this repo, which you cannot push to, and your solutions should not live
+here anyway:
+
+```bash
+git remote remove origin        # or: git remote set-url origin <your own repo>
+```
+
+Your progress lives in `plan/problems.json` and `solutions/`. Commit them somewhere private if you commit them at
+all — a public repo of your interview solutions is searchable.
 Then open the repo in Claude Code and say **"start"**. The agent handles the rest, including asking whether you
 have solved any of these before and importing that history if so.
 

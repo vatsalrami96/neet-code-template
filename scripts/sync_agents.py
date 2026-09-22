@@ -5,16 +5,32 @@ Codex reads AGENTS.md, Claude Code reads CLAUDE.md. They are the same manual wit
 only the .claude/ copies are edited by hand; run this after any change to them.
     python3 scripts/sync_agents.py [--check]
 """
-import os, shutil, sys, filecmp
+import os, re, shutil, sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 CHECK = "--check" in sys.argv
-SUBS = [("CLAUDE.md", "AGENTS.md"), ("Claude runs it", "Codex runs it"), (".claude/skills/", ".agents/skills/")]
+
+# Identifiers that merely contain the word "claude" and must survive untouched: MCP tool names,
+# the artifact host, the product name. A naive global replace mangles these - it is what turned
+# `.claude/skills/` into `.Codex/skills/` by hand.
+PROTECT = re.compile(r"mcp__[A-Za-z0-9_-]+|claude\.ai|Claude Code")
+PATHS = [("CLAUDE.md", "AGENTS.md"), (".claude/skills/", ".agents/skills/"), (".claude/", ".agents/")]
+AGENT = re.compile(r"\bClaude\b")
 
 
 def convert(text):
-    for a, b in SUBS:
+    held = []
+
+    def stash(m):
+        held.append(m.group(0))
+        return f"\0{len(held) - 1}\0"
+
+    text = PROTECT.sub(stash, text)
+    for a, b in PATHS:
         text = text.replace(a, b)
+    text = AGENT.sub("Codex", text)
+    for i, s in enumerate(held):
+        text = text.replace(f"\0{i}\0", s)
     return text
 
 

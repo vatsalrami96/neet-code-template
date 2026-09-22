@@ -14,9 +14,12 @@ message (offer the defaults; accept "defaults" as an answer), then run `init`. D
 - LeetCode Premium? (a few of the 150 are Premium-locked)
 
 ```
-python3 scripts/plan.py init --start-date YYYY-MM-DD --light-day Sunday --daily-minutes 240 --new-per-day 3
-python3 scripts/plan.py meta premium true          # or false
+python3 scripts/plan.py init --start-date YYYY-MM-DD --light-day Sunday --daily-minutes 240 --new-per-day 3 [--premium]
 ```
+
+Also check `git remote -v`. If it still points at the repo this was cloned from, they cannot push and their
+solutions do not belong there anyway. Say so once and let them decide: `git remote remove origin`, or point it at
+a repo of their own. Never push to an inherited remote.
 
 Then ask whether they have solved any of the 150 before. If yes, import that history so those problems queue as
 verifies instead of new problems - see "Importing past progress" below. If no, go straight to `schedule` and `today`.
@@ -74,7 +77,7 @@ and do re-solves only. All four numbers above live in `meta` and can be changed 
 ## Key commands (run from repo root)
 
 ```
-python3 scripts/plan.py init [--start-date D] [--light-day Sunday] [--daily-minutes 240] [--new-per-day 3]
+python3 scripts/plan.py init [--start-date D] [--light-day Sunday] [--daily-minutes 240] [--new-per-day 3] [--premium]
                                                        create plan/problems.json (first run only)
 python3 scripts/plan.py import-solved <file> [--source leetcode|neetcode] [--dry-run]
                                                        mark already-accepted problems as solved_unverified
@@ -177,7 +180,7 @@ History: <date> new clean 34 min 0 hints | <date> resolve clean
 
 ## Primers
 
-Written by Claude on demand, one per section, before its first problem. Template and required sections are in
+Written by Codex on demand, one per section, before its first problem. Template and required sections are in
 `primers/README.md`. Existing primers are never rewritten wholesale; append corrections.
 
 ## Modes and edge cases

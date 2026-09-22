@@ -129,13 +129,15 @@ deferred = sum(1 for p in d["problems"] if "deferred" in p["flags"])
 rate = st["resolve_clean_rate_week"]
 pf = st.get("preflight_score_week")
 tr = st.get("traced_rate_week")
+pfm = st.get("median_preflight_minutes_week")
 tiles = [
     ("Owned", f'{st["solved_or_verified"]}<small>/{st["total_core"]}</small>', "solved or verified, NeetCode 150"),
     ("Unverified", str(st["unverified"]), "solved before, not yet re-proven"),
     ("Streak", f'{st["streak"]}<small> d</small>', "days with any recorded work"),
     ("Re-solve clean", f'{rate if rate is not None else "–"}<small>{"%" if rate is not None else ""}</small>', "this week; the number that matters"),
     ("Pre-flight", f'{pf if pf is not None else "–"}<small>{"/10" if pf is not None else ""}</small>',
-     f'steps 1-5 before coding; {tr}% traced before submit' if tr is not None else "steps 1-5, stated before coding"),
+     ((f'steps 1-5 before coding, {pfm:g} min median' if pfm is not None else "steps 1-5, stated before coding")
+      + (f'; {tr}% traced' if tr is not None else ""))),
     ("Projected finish", finish_txt, f'{deferred} deferred' if deferred else ("interview " + interview if interview else "no interview date set")),
 ]
 tiles_html = "".join(f'<div class="tile"><span class="tl">{t}</span><span class="tv">{v}</span><span class="td">{E(sd)}</span></div>' for t, v, sd in tiles)

@@ -51,6 +51,9 @@ Record notes: `python3 scripts/plan.py note <id> insight "..."`, and likewise `c
 - Step 5 needs the **invariant**, not just the pattern name. Pattern alone is a 1.
 - A target complexity that does not match what they shipped is a 1, even if the code is correct - it went unused.
 - `late: true` or no pre-flight logged: score 0 and say so plainly, once.
+- `preflight.minutes` is the gap between logging it and starting the clock. Target is 5 to 6. Say the figure in
+  the record line. Over about 10, name it: that time is free here and is not free in the room. Under 2 on a
+  Medium usually means steps 1 to 3 were skipped, which the step scores should already reflect.
 Also settle **traced**: did they dry-run an example and an edge case before submitting? If they say yes and
 `failedSince` is 2 or more, say the contradiction out loud and record `--not-traced`. One line, no lecture.
 

@@ -10,7 +10,7 @@ Amazon scores, interleave/other-lang/no-lc-accept flags - is taken from the live
     python3 scripts/test_plan.py
 """
 import argparse, json, os, shutil, sys, tempfile, unittest
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import plan as P
@@ -528,6 +528,37 @@ class TestPreflight(Base):
         self.assertEqual(st["preflight_score_week"], 8.0)
         self.assertEqual(st["preflight_logged_rate_week"], 100)
         self.assertEqual(st["traced_rate_week"], 50)
+
+    def test_preflight_duration_is_derived_from_the_two_timestamps(self):
+        pid = self._pid()
+        P.cmd_preflight(self.A(id=pid, text="x"))
+        d = P.load()
+        # pre-flight at T, clock started 6 minutes later
+        at = datetime.fromisoformat(d["inprogress"][pid]["preflight"]["at"])
+        d["inprogress"][pid]["start"] = (at + timedelta(minutes=6)).isoformat(timespec="seconds")
+        att = P.record_attempt(d, pid, "verify", "clean", START, minutes=12, preflight=8)
+        P.save(d)
+        self.assertEqual(att["preflight"]["minutes"], 6.0)
+        self.assertEqual(att["minutes"], 12)          # solve time is untouched by the pre-flight
+
+    def test_preflight_duration_is_none_without_a_clock(self):
+        pid = self._pid()
+        P.cmd_preflight(self.A(id=pid, text="x"))
+        d = P.load()
+        att = P.record_attempt(d, pid, "verify", "clean", START, minutes=9, preflight=8)
+        P.save(d)
+        self.assertIsNone(att["preflight"]["minutes"])
+
+    def test_stats_report_median_preflight_minutes(self):
+        picks = self._seed()[:2]
+        for pid, gap in zip(picks, (4, 8)):
+            P.cmd_preflight(self.A(id=pid, text="x"))
+            d = P.load()
+            at = datetime.fromisoformat(d["inprogress"][pid]["preflight"]["at"])
+            d["inprogress"][pid]["start"] = (at + timedelta(minutes=gap)).isoformat(timespec="seconds")
+            P.record_attempt(d, pid, "verify", "clean", START, minutes=10, preflight=8)
+            P.save(d)
+        self.assertEqual(P.stats(P.load(), START)["median_preflight_minutes_week"], 6.0)
 
     def test_score_must_be_within_range(self):
         pid = self._pid()

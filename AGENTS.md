@@ -113,6 +113,8 @@ Problem ids are LeetCode slugs (e.g. `two-sum`). `plan.py today --json` gives id
   (2 per step, same scale as `mock`). Logged verbatim by `plan.py preflight`, which timestamps it; a pre-flight
   logged after `start` scores 0, because it cannot show the thinking preceded the coding. Steps 1-3 may be
   answered like an interviewer would; steps 4-5 get no signal at all, or the score measures nothing.
+  Pre-flight duration is derived from the gap between `preflight` and `start` and reported separately from
+  `minutes`, so solve speed stays comparable with attempts recorded before this existed; target 5 to 6 minutes.
   `traced` records whether step 7 (dry-run + edge case) happened before submitting. Neither changes the attempt
   `result` - process and outcome are separate signals. Re-solves have no pre-flight.
 - Error tags (pick from): `misread`, `off-by-one`, `wrong-ds`, `edge-case`, `tle`, `syntax`, `logic`, `complexity`

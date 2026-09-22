@@ -430,8 +430,18 @@ def record_attempt(d, pid, typ, result, day, minutes=None, hints=None, explain=N
     # evidence that steps 1-5 happened before coding, not a claim made afterwards.
     pf = (ip or {}).get("preflight")
     if pf or preflight is not None:
+        # Duration is the gap between logging the pre-flight and starting the clock. Nothing extra is
+        # captured for it; both timestamps already exist. It is reported separately from `minutes` so
+        # median_medium_minutes_week stays a solve-speed number and stays comparable with older attempts.
+        pf_min = None
+        if pf and pf.get("at") and (ip or {}).get("start"):
+            try:
+                delta = (datetime.fromisoformat(ip["start"]) - datetime.fromisoformat(pf["at"])).total_seconds()
+                pf_min = round(delta / 60, 1) if delta >= 0 else None
+            except Exception:
+                pf_min = None
         att["preflight"] = {"score": preflight, "logged": bool(pf),
-                            "at": (pf or {}).get("at"), "text": (pf or {}).get("text", "")}
+                            "at": (pf or {}).get("at"), "minutes": pf_min, "text": (pf or {}).get("text", "")}
     if traced is not None:
         att["traced"] = bool(traced)
     p["attempts"].append(att)
@@ -497,6 +507,8 @@ def stats(d, upto=None):
                  if a.get("preflight") and a["preflight"].get("score") is not None]
     pf_eligible = [a for a in new_wk if a.get("preflight") is not None or a.get("traced") is not None]
     pf_logged = [a for a in new_wk if a.get("preflight", {}).get("logged")]
+    pf_mins = [a["preflight"]["minutes"] for a in new_wk
+               if a.get("preflight") and a["preflight"].get("minutes") is not None]
     traced = [a["traced"] for a in new_wk if a.get("traced") is not None]
     hints = [a["hints"] for a in new_wk if isinstance(a.get("hints"), int)]
     total = len([p for p in d["problems"] if not p["gap"]])
@@ -514,6 +526,7 @@ def stats(d, upto=None):
         "hints_per_new_week": round(sum(hints) / len(hints), 2) if hints else None,
         "preflight_score_week": round(sum(pf_scored) / len(pf_scored), 1) if pf_scored else None,
         "preflight_logged_rate_week": round(100 * len(pf_logged) / len(new_wk)) if new_wk else None,
+        "median_preflight_minutes_week": statistics.median(pf_mins) if pf_mins else None,
         "traced_rate_week": round(100 * sum(traced) / len(traced)) if traced else None,
         "median_medium_minutes_week": statistics.median(med) if med else None,
         "error_categories_week": dict(sorted(errs.items(), key=lambda kv: -kv[1])),
@@ -660,6 +673,7 @@ def cmd_record(args):
     if att.get("preflight"):
         pf = att["preflight"]
         extra += f" · pre-flight {pf['score'] if pf['score'] is not None else '-'}/10"
+        if pf.get("minutes") is not None: extra += f" in {pf['minutes']:g} min"
         if not pf["logged"]: extra += " (not logged before the clock)"
     if att.get("traced") is not None:
         extra += f" · traced {'yes' if att['traced'] else 'no'}"

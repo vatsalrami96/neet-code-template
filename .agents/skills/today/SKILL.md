@@ -41,6 +41,9 @@ description: Start the day. Shows what is due (new problems, verifies, re-solves
    ```
    python3 scripts/plan.py preflight <id> "<steps 4 and 5, their words, verbatim>"
    ```
+   Keep it to about five minutes - an interview budgets roughly that for steps 1 to 5, and the gap between
+   `preflight` and `start` is recorded, so a twenty-minute think shows up. Say the elapsed figure at sync,
+   do not police it live.
    Log it **before** `plan.py start`. The command warns if the clock is already running, and a late pre-flight
    scores 0 - it cannot show the thinking came before the coding, which is the only thing it measures.
    If they want to skip it, that is their call: say "skipped, scores 0" in three words and move on. Do not argue.
